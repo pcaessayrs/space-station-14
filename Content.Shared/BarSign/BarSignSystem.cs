@@ -1,3 +1,4 @@
+using Content.Shared.Emp;
 using System.Linq;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Random;
@@ -18,6 +19,8 @@ public sealed class BarSignSystem : EntitySystem
         {
             subs.Event<SetBarSignMessage>(OnSetBarSignMessage);
         });
+
+        SubscribeLocalEvent<BarSignComponent, EmpPulseEvent>(OnEmpPulse);
     }
 
     private void OnMapInit(Entity<BarSignComponent> ent, ref MapInitEvent args)
@@ -37,8 +40,31 @@ public sealed class BarSignSystem : EntitySystem
         SetBarSign(ent, signPrototype);
     }
 
+    /// <summary>
+    /// Set the sprite, name and description of the bar sign to a given <see cref="BarSignPrototype"/>.
+    /// </summary>
+    private void OnEmpPulse(Entity<BarSignComponent> ent, ref EmpPulseEvent args)
+    {
+        //AppearanceSystem.TryGetData<bool>(uid, PowerDeviceVisuals.Powered, out var powered, args.Component);
+        if (!_prototypeManager.Resolve(ent.Comp.EmpFallback, out var empFallbackPrototype))
+            return;
+
+        SetBarSign(ent, empFallbackPrototype);
+        args.Affected = true;
+        args.Disabled = true;
+    }
+
+    /// <summary>
+    /// Set the sprite, name and description of the bar sign to a given <see cref="BarSignPrototype"/>.
+    /// </summary>
     public void SetBarSign(Entity<BarSignComponent> ent, BarSignPrototype newPrototype)
     {
+        if (ent.Comp.Current == newPrototype.ID)
+            return;
+
+        if (HasComp<EmpDisabledComponent>(ent))
+            return;
+
         var meta = MetaData(ent);
         var name = Loc.GetString(newPrototype.Name);
         _metaData.SetEntityName(ent, name, meta);
